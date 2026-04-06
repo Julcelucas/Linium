@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Criar Contas de Teste - Linium</title>
+</head>
+<body>
+  <h1>Criando contas de teste...</h1>
+  <p id="status">Processando...</p>
+
+  <script>
+    const testAccounts = [
+      {
+        id: "test-1",
+        name: "João Silva",
+        username: null,
+        email: "joao@test.com",
+        password: "123456",
+        role: "prestador",
+        nif: "12345678901",
+        phone: "923456789",
+        publicEmail: "joao@email.com",
+        whatsapp: "923456789",
+        website: "",
+        adminNote: "Perfil em análise",
+        rejectionReason: "",
+        documentRef: "idcard_front.pdf",
+        validationStatus: "pendente",
+        createdAt: new Date().toISOString()
+      },
+      {
+        id: "test-2",
+        name: "Maria Santos",
+        username: null,
+        email: "maria@test.com",
+        password: "123456",
+        role: "empresa",
+        nif: "9876543210",
+        phone: "916789012",
+        publicEmail: "maria@empresa.pt",
+        whatsapp: "916789012",
+        website: "https://empresa-teste.com",
+        adminNote: "",
+        rejectionReason: "",
+        documentRef: "comercial.pdf",
+        validationStatus: "pendente",
+        createdAt: new Date().toISOString()
+      },
+      {
+        id: "test-3",
+        name: "Carlos Oliveira",
+        username: null,
+        email: "carlos@test.com",
+        password: "123456",
+        role: "prestador",
+        nif: "11111111111",
+        phone: "987654321",
+        publicEmail: "carlos@email.com",
+        whatsapp: "987654321",
+        website: "",
+        adminNote: "",
+        rejectionReason: "Documentação incompleta",
+        documentRef: "idcard_back.pdf",
+        validationStatus: "rejeitado",
+        createdAt: new Date().toISOString()
+      },
+      {
+        id: "test-4",
+        name: "Ana Costa",
+        username: null,
+        email: "ana@test.com",
+        password: "123456",
+        role: "cliente",
+        nif: null,
+        phone: null,
+        publicEmail: null,
+        whatsapp: null,
+        website: null,
+        adminNote: "",
+        rejectionReason: "",
+        documentRef: null,
+        validationStatus: "ativo",
+        createdAt: new Date().toISOString()
+      }
+    ];
+
+    try {
+      localStorage.setItem('linium-accounts', JSON.stringify(testAccounts));
+      document.getElementById('status').innerHTML = 
+        '<strong style="color: green;">✓ Contas criadas com sucesso!</strong><br>' +
+        '<p>Podes agora fazer login como admin:</p>' +
+        '<ul>' +
+        '<li><strong>Utilizador:</strong> admin</li>' +
+        '<li><strong>Senha:</strong> admin02</li>' +
+        '</ul>' +
+        '<p><a href="http://localhost:5174/">Vai para a página principal</a></p>';
+    } catch (error) {
+      document.getElementById('status').innerHTML = 
+        '<strong style="color: red;">Erro ao criar contas: ' + error.message + '</strong>';
+    }
+  </script>
+</body>
+</html>

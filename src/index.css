@@ -1,0 +1,105 @@
+@import url('https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,600;6..72,700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+:root {
+  --brand: #082a33;
+  --brand-mid: #0b5e82;
+  --accent: #0b90c4;
+  --accent-lt: #d4edf7;
+  --surface: #f7f9fb;
+  --surface-2: #ffffff;
+  --border: #dde4ea;
+  --text: #0d1b22;
+  --text-muted: #5a7080;
+}
+
+@theme inline {
+  --font-sans: 'Plus Jakarta Sans', sans-serif;
+  --font-display: 'Newsreader', serif;
+}
+
+html {
+  scroll-behavior: smooth;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background:
+    radial-gradient(circle at top left, rgba(11, 144, 196, 0.12), transparent 30%),
+    radial-gradient(circle at bottom right, rgba(8, 42, 51, 0.1), transparent 32%),
+    var(--surface);
+  color: var(--text);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  line-height: 1.6;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  text-decoration: none;
+}
+
+a,
+button,
+select,
+[role='button'] {
+  cursor: pointer;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  text-wrap: pretty;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+::selection {
+  background: rgba(11, 144, 196, 0.2);
+  color: var(--brand);
+}
+
+.float-card {
+  animation: floatCard 8s ease-in-out infinite;
+}
+
+.reveal {
+  animation: revealUp 0.7s ease both;
+}
+
+.font-display {
+  letter-spacing: -0.03em;
+  font-weight: 600;
+  padding-bottom: 0.08em;
+}
+
+@keyframes floatCard {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes revealUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
