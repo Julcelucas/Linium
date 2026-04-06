@@ -96,19 +96,19 @@ export default function AdminPage() {
     setIsDeleteConfirmOpen(false)
   }
 
-  function handleApprove(accountId) {
-    approveAccount(accountId, { adminNote: adminNoteDraft })
+  async function handleApprove(accountId) {
+    await approveAccount(accountId, { adminNote: adminNoteDraft })
   }
 
-  function handleReject(accountId) {
-    rejectAccount(accountId, {
+  async function handleReject(accountId) {
+    await rejectAccount(accountId, {
       adminNote: adminNoteDraft,
       rejectionReason: rejectionReasonDraft,
     })
   }
 
-  function handleSaveReview(accountId) {
-    updateAccountReview(accountId, {
+  async function handleSaveReview(accountId) {
+    await updateAccountReview(accountId, {
       adminNote: adminNoteDraft,
       rejectionReason: rejectionReasonDraft,
     })
@@ -489,6 +489,32 @@ export default function AdminPage() {
               </label>
             </div>
 
+            <div className="mt-6 rounded-[1.4rem] border border-[var(--border)] bg-[var(--surface)] p-5">
+              <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[var(--brand)]">
+                Histórico de estado
+              </p>
+              <div className="mt-4 space-y-3">
+                {(selectedAccount.statusHistory || []).length === 0 ? (
+                  <p className="text-sm text-slate-600">Sem histórico registado.</p>
+                ) : (
+                  [...(selectedAccount.statusHistory || [])]
+                    .reverse()
+                    .map((entry, index) => (
+                      <div
+                        key={`${entry.status}-${entry.changedAt}-${index}`}
+                        className="rounded-xl border border-[var(--border)] bg-white px-4 py-3"
+                      >
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                          {formatDate(entry.changedAt)}
+                        </p>
+                        <p className="mt-1 text-sm font-semibold text-[var(--brand)]">{entry.status}</p>
+                        <p className="mt-1 text-sm leading-6 text-slate-600">{entry.note}</p>
+                      </div>
+                    ))
+                )}
+              </div>
+            </div>
+
             <div className="mt-6 flex flex-wrap gap-3">
               <button
                 type="button"
@@ -550,8 +576,10 @@ export default function AdminPage() {
                   <button
                     type="button"
                     onClick={() => {
-                      deleteAccount(selectedAccount.id)
-                      handleCloseDetail()
+                      void (async () => {
+                        await deleteAccount(selectedAccount.id)
+                        handleCloseDetail()
+                      })()
                     }}
                     className="inline-flex items-center rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-white"
                   >

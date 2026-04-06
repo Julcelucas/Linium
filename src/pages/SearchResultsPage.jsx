@@ -1,6 +1,36 @@
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { filterProfiles, marketplaceProfiles } from '../data/marketplaceData'
 import { useAuth } from '../auth/AuthContext'
+
+const PAGE_SIZE = 6
+
+const sortOptions = [
+  { value: 'relevance', label: 'Mais relevantes' },
+  { value: 'rating-desc', label: 'Melhor avaliação' },
+  { value: 'response-asc', label: 'Resposta mais rápida' },
+  { value: 'jobs-desc', label: 'Mais serviços concluídos' },
+  { value: 'name-asc', label: 'Nome (A-Z)' },
+]
+
+function parseResponseTime(value) {
+  if (!value) {
+    return Number.POSITIVE_INFINITY
+  }
+
+  const text = String(value).toLowerCase()
+  const number = Number.parseInt(text.replace(/[^\d]/g, ''), 10)
+
+  if (Number.isNaN(number)) {
+    return Number.POSITIVE_INFINITY
+  }
+
+  if (text.includes('h')) {
+    return number * 60
+  }
+
+  return number
+}
 
 function IconPhone() {
   return (
@@ -38,6 +68,8 @@ export default function SearchResultsPage() {
   const [searchParams] = useSearchParams()
   const location = useLocation()
   const { accounts } = useAuth()
+  const [sortBy, setSortBy] = useState('relevance')
+  const [page, setPage] = useState(1)
 
   const filters = {
     query: searchParams.get('query') || '',
@@ -79,6 +111,39 @@ export default function SearchResultsPage() {
   const results = filterProfiles(filters, allProfiles)
   const initialCount = location.state?.initialCount
 
+  const sortedResults = useMemo(() => {
+    const next = [...results]
+
+    switch (sortBy) {
+      case 'rating-desc':
+        return next.sort((left, right) => right.rating - left.rating)
+      case 'response-asc':
+        return next.sort(
+          (left, right) => parseResponseTime(left.responseTime) - parseResponseTime(right.responseTime)
+        )
+      case 'jobs-desc':
+        return next.sort((left, right) => right.jobs - left.jobs)
+      case 'name-asc':
+        return next.sort((left, right) => left.name.localeCompare(right.name, 'pt-PT'))
+      case 'relevance':
+      default:
+        return next
+    }
+  }, [results, sortBy])
+
+  const totalPages = Math.max(1, Math.ceil(sortedResults.length / PAGE_SIZE))
+  const paginatedResults = sortedResults.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+  useEffect(() => {
+    setPage(1)
+  }, [searchParams, sortBy])
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages)
+    }
+  }, [page, totalPages])
+
   return (
     <main className="min-h-screen bg-[var(--surface)] px-6 py-12">
       <div className="mx-auto w-full max-w-7xl space-y-8">
@@ -105,15 +170,36 @@ export default function SearchResultsPage() {
                 </span>
               ))}
           </div>
+
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border)] pt-5">
+            <div className="text-sm text-slate-600">
+              A mostrar {sortedResults.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1} -{' '}
+              {Math.min(page * PAGE_SIZE, sortedResults.length)} de {sortedResults.length}
+            </div>
+            <label className="flex items-center gap-3 text-sm text-slate-600">
+              Ordenar por
+              <select
+                value={sortBy}
+                onChange={(event) => setSortBy(event.target.value)}
+                className="rounded-xl border border-[var(--border)] bg-white px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-[var(--accent)]"
+              >
+                {sortOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
         </section>
 
         <section className="grid gap-5 lg:grid-cols-2 xl:grid-cols-3">
-          {results.length === 0 ? (
+          {sortedResults.length === 0 ? (
             <div className="rounded-[1.8rem] border border-[var(--border)] bg-white p-7 text-sm leading-7 text-slate-600 lg:col-span-2 xl:col-span-3">
               Não encontrámos perfis para esta combinação de filtros. Ajusta a categoria, a zona ou o tipo de atendimento.
             </div>
           ) : (
-            results.map((profile) => (
+            paginatedResults.map((profile) => (
               <article
                 key={profile.id}
                 className="rounded-[1.8rem] border border-[var(--border)] bg-white p-6 shadow-[0_18px_40px_rgba(8,42,51,0.06)]"
@@ -210,6 +296,30 @@ export default function SearchResultsPage() {
             ))
           )}
         </section>
+
+        {sortedResults.length > 0 ? (
+          <nav className="flex items-center justify-center gap-3 pb-2">
+            <button
+              type="button"
+              onClick={() => setPage((current) => Math.max(1, current - 1))}
+              disabled={page === 1}
+              className="rounded-xl border border-[var(--border)] bg-white px-4 py-2 text-sm font-semibold text-[var(--brand)] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Anterior
+            </button>
+            <span className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--brand)]">
+              Página {page} de {totalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+              disabled={page === totalPages}
+              className="rounded-xl border border-[var(--border)] bg-white px-4 py-2 text-sm font-semibold text-[var(--brand)] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Próxima
+            </button>
+          </nav>
+        ) : null}
       </div>
     </main>
   )

@@ -1,16 +1,33 @@
-# React + Vite
+# Linium Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Aplicacao React (Vite) do Linium, uma plataforma para descoberta de servicos locais, validacao de perfis e operacao administrativa.
 
-Currently, two official plugins are available:
+## Executar localmente
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+npm install
+npm run dev
+```
 
-## React Compiler
+## Scripts
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- `npm run dev` - inicia ambiente de desenvolvimento
+- `npm run build` - gera build de producao
+- `npm run preview` - serve build localmente
+- `npm run lint` - executa lint
 
-## Expanding the ESLint configuration
+## Escopo do MVP
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+O escopo funcional atual esta definido em [docs/MVP_SCOPE.md](docs/MVP_SCOPE.md).
+
+## Supabase
+
+Para executar com Supabase, ver guia completo em [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md).
+
+## Estado atual
+
+- Autenticacao local por perfis (`cliente`, `prestador`, `empresa`, `admin`)
+- Dashboard por tipo de utilizador
+- Painel administrativo com validacao de contas
+- Pesquisa de servicos com filtros
+- Navegacao principal com paginas institucionais dedicadas

@@ -1,25 +1,28 @@
-import { createContext, useContext, useMemo, useState } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react'
+import { appConfig } from '../config/appConfig'
+import {
+  clearSession,
+  readAccounts,
+  readSession,
+  writeAccounts,
+  writeSession,
+} from '../services/auth/localStorageAuth'
+import {
+  deleteSupabaseAccount,
+  fetchSupabaseAccounts,
+  getSupabaseSessionProfile,
+  loginWithSupabase,
+  logoutSupabase,
+  registerWithSupabase,
+  updateSupabaseReview,
+  updateSupabaseValidationStatus,
+} from '../services/auth/supabaseAuth'
 
-const ACCOUNTS_KEY = 'linium-accounts'
-const SESSION_KEY = 'linium-session'
 const DEFAULT_ADMIN_USERNAME = 'admin'
 const DEFAULT_ADMIN_EMAIL = 'admin@linium.ao'
 const DEFAULT_ADMIN_PASSWORD = 'admin02'
 
 const AuthContext = createContext(null)
-
-function readJson(key, fallback) {
-  try {
-    const raw = localStorage.getItem(key)
-    return raw ? JSON.parse(raw) : fallback
-  } catch {
-    return fallback
-  }
-}
-
-function writeJson(key, value) {
-  localStorage.setItem(key, JSON.stringify(value))
-}
 
 function ensureAdminAccount(accounts) {
   const adminIndex = accounts.findIndex((item) => item.role === 'admin')
@@ -38,6 +41,13 @@ function ensureAdminAccount(accounts) {
         email: DEFAULT_ADMIN_EMAIL,
         password: DEFAULT_ADMIN_PASSWORD,
         validationStatus: 'ativo',
+        statusHistory: account.statusHistory || [
+          {
+            status: 'ativo',
+            changedAt: account.createdAt || new Date().toISOString(),
+            note: 'Conta administrativa ativa por configuração do sistema.',
+          },
+        ],
       }
     })
   }
@@ -54,30 +64,141 @@ function ensureAdminAccount(accounts) {
       documentRef: null,
       validationStatus: 'ativo',
       createdAt: new Date().toISOString(),
+      statusHistory: [
+        {
+          status: 'ativo',
+          changedAt: new Date().toISOString(),
+          note: 'Conta administrativa ativa por configuração do sistema.',
+        },
+      ],
     },
     ...accounts,
   ]
 }
 
-export function AuthProvider({ children }) {
-  const [accounts, setAccounts] = useState(() => {
-    const storedAccounts = readJson(ACCOUNTS_KEY, [])
-    const hydratedAccounts = ensureAdminAccount(storedAccounts)
+function toSessionUser(account) {
+  return {
+    id: account.id,
+    name: account.name,
+    email: account.email,
+    role: account.role,
+    validationStatus: account.validationStatus,
+  }
+}
 
-    if (hydratedAccounts.length !== storedAccounts.length) {
-      writeJson(ACCOUNTS_KEY, hydratedAccounts)
+export function AuthProvider({ children }) {
+  const [accounts, setAccounts] = useState([])
+  const [user, setUser] = useState(null)
+  const [authReady, setAuthReady] = useState(false)
+
+  const isSupabaseMode = appConfig.authMode === 'supabase'
+
+  useEffect(() => {
+    let isMounted = true
+
+    async function bootstrapLocal() {
+      const storedAccounts = readAccounts()
+      const hydratedAccounts = ensureAdminAccount(storedAccounts)
+
+      if (hydratedAccounts.length !== storedAccounts.length) {
+        writeAccounts(hydratedAccounts)
+      }
+
+      if (!isMounted) {
+        return
+      }
+
+      setAccounts(hydratedAccounts)
+      setUser(readSession())
+      setAuthReady(true)
     }
 
-    return hydratedAccounts
-  })
-  const [user, setUser] = useState(() => readJson(SESSION_KEY, null))
+    async function bootstrapSupabase() {
+      const [accountsResult, sessionResult] = await Promise.all([
+        fetchSupabaseAccounts(),
+        getSupabaseSessionProfile(),
+      ])
 
-  function persistAccounts(nextAccounts) {
+      if (!isMounted) {
+        return
+      }
+
+      if (!accountsResult.ok) {
+        setAccounts([])
+        setUser(null)
+        setAuthReady(true)
+        return
+      }
+
+      setAccounts(accountsResult.accounts)
+      setUser(sessionResult.ok ? sessionResult.user : null)
+      setAuthReady(true)
+    }
+
+    if (isSupabaseMode) {
+      void bootstrapSupabase()
+    } else {
+      void bootstrapLocal()
+    }
+
+    return () => {
+      isMounted = false
+    }
+  }, [isSupabaseMode])
+
+  function persistLocalAccounts(nextAccounts) {
     setAccounts(nextAccounts)
-    writeJson(ACCOUNTS_KEY, nextAccounts)
+    writeAccounts(nextAccounts)
   }
 
-  function registerAccount(payload) {
+  async function refreshSupabaseAccounts() {
+    const result = await fetchSupabaseAccounts()
+
+    if (!result.ok) {
+      return []
+    }
+
+    setAccounts(result.accounts)
+    return result.accounts
+  }
+
+  async function syncSessionUserFromAccounts(nextAccounts) {
+    if (!user) {
+      return
+    }
+
+    const currentAccount = nextAccounts.find((item) => item.id === user.id)
+
+    if (!currentAccount) {
+      setUser(null)
+      clearSession()
+      return
+    }
+
+    const nextSessionUser = toSessionUser(currentAccount)
+    setUser(nextSessionUser)
+
+    if (!isSupabaseMode) {
+      writeSession(nextSessionUser)
+    }
+  }
+
+  async function registerAccount(payload) {
+    if (isSupabaseMode) {
+      const result = await registerWithSupabase(payload)
+
+      if (!result.ok) {
+        return result
+      }
+
+      await refreshSupabaseAccounts()
+      if (result.user) {
+        setUser(result.user)
+      }
+
+      return result
+    }
+
     const normalizedEmail = payload.email.trim().toLowerCase()
     const exists = accounts.some(
       (item) => item.email.toLowerCase() === normalizedEmail && item.role === payload.role
@@ -87,6 +208,7 @@ export function AuthProvider({ children }) {
       return { ok: false, message: 'Já existe uma conta com este email para este perfil.' }
     }
 
+    const now = new Date().toISOString()
     const account = {
       id: crypto.randomUUID(),
       name: payload.name.trim(),
@@ -103,27 +225,45 @@ export function AuthProvider({ children }) {
       rejectionReason: '',
       documentRef: payload.documentRef || null,
       validationStatus: payload.role === 'cliente' ? 'ativo' : 'pendente',
-      createdAt: new Date().toISOString(),
+      createdAt: now,
+      statusHistory: [
+        {
+          status: payload.role === 'cliente' ? 'ativo' : 'pendente',
+          changedAt: now,
+          note:
+            payload.role === 'cliente'
+              ? 'Conta ativada automaticamente para cliente.'
+              : 'Conta criada e pendente de validação administrativa.',
+        },
+      ],
     }
 
     const nextAccounts = [account, ...accounts]
-    persistAccounts(nextAccounts)
+    persistLocalAccounts(nextAccounts)
 
-    const sessionUser = {
-      id: account.id,
-      name: account.name,
-      email: account.email,
-      role: account.role,
-      validationStatus: account.validationStatus,
-    }
-
+    const sessionUser = toSessionUser(account)
     setUser(sessionUser)
-    writeJson(SESSION_KEY, sessionUser)
+    writeSession(sessionUser)
 
     return { ok: true, message: 'Conta criada com sucesso.', user: sessionUser }
   }
 
-  function approveAccount(accountId, metadata = {}) {
+  async function approveAccount(accountId, metadata = {}) {
+    if (isSupabaseMode) {
+      const result = await updateSupabaseValidationStatus(accountId, 'ativo', {
+        adminNote: metadata.adminNote,
+        note: metadata.adminNote?.trim() || 'Conta aprovada pela administração.',
+      })
+
+      if (!result.ok) {
+        return result
+      }
+
+      const nextAccounts = await refreshSupabaseAccounts()
+      await syncSessionUserFromAccounts(nextAccounts)
+      return { ok: true }
+    }
+
     let approvedUser = null
 
     const nextAccounts = accounts.map((account) => {
@@ -136,28 +276,50 @@ export function AuthProvider({ children }) {
         validationStatus: 'ativo',
         adminNote: metadata.adminNote?.trim() || account.adminNote || '',
         rejectionReason: '',
+        statusHistory: [
+          ...(account.statusHistory || []),
+          {
+            status: 'ativo',
+            changedAt: new Date().toISOString(),
+            note: metadata.adminNote?.trim() || 'Conta aprovada pela administração.',
+          },
+        ],
       }
 
       return approvedUser
     })
 
-    persistAccounts(nextAccounts)
+    persistLocalAccounts(nextAccounts)
 
     if (user?.id === accountId && approvedUser) {
-      const nextSessionUser = {
-        id: approvedUser.id,
-        name: approvedUser.name,
-        email: approvedUser.email,
-        role: approvedUser.role,
-        validationStatus: approvedUser.validationStatus,
-      }
-
+      const nextSessionUser = toSessionUser(approvedUser)
       setUser(nextSessionUser)
-      writeJson(SESSION_KEY, nextSessionUser)
+      writeSession(nextSessionUser)
     }
+
+    return { ok: true }
   }
 
-  function rejectAccount(accountId, metadata = {}) {
+  async function rejectAccount(accountId, metadata = {}) {
+    if (isSupabaseMode) {
+      const result = await updateSupabaseValidationStatus(accountId, 'rejeitado', {
+        adminNote: metadata.adminNote,
+        rejectionReason: metadata.rejectionReason,
+        note:
+          metadata.rejectionReason?.trim() ||
+          metadata.adminNote?.trim() ||
+          'Conta rejeitada pela administração.',
+      })
+
+      if (!result.ok) {
+        return result
+      }
+
+      const nextAccounts = await refreshSupabaseAccounts()
+      await syncSessionUserFromAccounts(nextAccounts)
+      return { ok: true }
+    }
+
     let rejectedUser = null
 
     const nextAccounts = accounts.map((account) => {
@@ -170,28 +332,49 @@ export function AuthProvider({ children }) {
         validationStatus: 'rejeitado',
         adminNote: metadata.adminNote?.trim() || account.adminNote || '',
         rejectionReason: metadata.rejectionReason?.trim() || account.rejectionReason || '',
+        statusHistory: [
+          ...(account.statusHistory || []),
+          {
+            status: 'rejeitado',
+            changedAt: new Date().toISOString(),
+            note:
+              metadata.rejectionReason?.trim() ||
+              metadata.adminNote?.trim() ||
+              'Conta rejeitada pela administração.',
+          },
+        ],
       }
 
       return rejectedUser
     })
 
-    persistAccounts(nextAccounts)
+    persistLocalAccounts(nextAccounts)
 
     if (user?.id === accountId && rejectedUser) {
-      const nextSessionUser = {
-        id: rejectedUser.id,
-        name: rejectedUser.name,
-        email: rejectedUser.email,
-        role: rejectedUser.role,
-        validationStatus: rejectedUser.validationStatus,
-      }
-
+      const nextSessionUser = toSessionUser(rejectedUser)
       setUser(nextSessionUser)
-      writeJson(SESSION_KEY, nextSessionUser)
+      writeSession(nextSessionUser)
     }
+
+    return { ok: true }
   }
 
-  function deactivateAccount(accountId, metadata = {}) {
+  async function deactivateAccount(accountId, metadata = {}) {
+    if (isSupabaseMode) {
+      const result = await updateSupabaseValidationStatus(accountId, 'inativo', {
+        adminNote: metadata.adminNote,
+        note: metadata.adminNote?.trim() || 'Conta desativada pela administração.',
+      })
+
+      if (!result.ok) {
+        return result
+      }
+
+      const nextAccounts = await refreshSupabaseAccounts()
+      await syncSessionUserFromAccounts(nextAccounts)
+      return { ok: true }
+    }
+
     let updatedUser = null
 
     const nextAccounts = accounts.map((account) => {
@@ -203,28 +386,46 @@ export function AuthProvider({ children }) {
         ...account,
         validationStatus: 'inativo',
         adminNote: metadata.adminNote?.trim() || account.adminNote || '',
+        statusHistory: [
+          ...(account.statusHistory || []),
+          {
+            status: 'inativo',
+            changedAt: new Date().toISOString(),
+            note: metadata.adminNote?.trim() || 'Conta desativada pela administração.',
+          },
+        ],
       }
 
       return updatedUser
     })
 
-    persistAccounts(nextAccounts)
+    persistLocalAccounts(nextAccounts)
 
     if (user?.id === accountId && updatedUser) {
-      const nextSessionUser = {
-        id: updatedUser.id,
-        name: updatedUser.name,
-        email: updatedUser.email,
-        role: updatedUser.role,
-        validationStatus: updatedUser.validationStatus,
-      }
-
+      const nextSessionUser = toSessionUser(updatedUser)
       setUser(nextSessionUser)
-      writeJson(SESSION_KEY, nextSessionUser)
+      writeSession(nextSessionUser)
     }
+
+    return { ok: true }
   }
 
-  function reactivateAccount(accountId, metadata = {}) {
+  async function reactivateAccount(accountId, metadata = {}) {
+    if (isSupabaseMode) {
+      const result = await updateSupabaseValidationStatus(accountId, 'ativo', {
+        adminNote: metadata.adminNote,
+        note: metadata.adminNote?.trim() || 'Conta reativada pela administração.',
+      })
+
+      if (!result.ok) {
+        return result
+      }
+
+      const nextAccounts = await refreshSupabaseAccounts()
+      await syncSessionUserFromAccounts(nextAccounts)
+      return { ok: true }
+    }
+
     let updatedUser = null
 
     const nextAccounts = accounts.map((account) => {
@@ -236,38 +437,67 @@ export function AuthProvider({ children }) {
         ...account,
         validationStatus: 'ativo',
         adminNote: metadata.adminNote?.trim() || account.adminNote || '',
+        statusHistory: [
+          ...(account.statusHistory || []),
+          {
+            status: 'ativo',
+            changedAt: new Date().toISOString(),
+            note: metadata.adminNote?.trim() || 'Conta reativada pela administração.',
+          },
+        ],
       }
 
       return updatedUser
     })
 
-    persistAccounts(nextAccounts)
+    persistLocalAccounts(nextAccounts)
 
     if (user?.id === accountId && updatedUser) {
-      const nextSessionUser = {
-        id: updatedUser.id,
-        name: updatedUser.name,
-        email: updatedUser.email,
-        role: updatedUser.role,
-        validationStatus: updatedUser.validationStatus,
-      }
-
+      const nextSessionUser = toSessionUser(updatedUser)
       setUser(nextSessionUser)
-      writeJson(SESSION_KEY, nextSessionUser)
+      writeSession(nextSessionUser)
     }
+
+    return { ok: true }
   }
 
-  function deleteAccount(accountId) {
+  async function deleteAccount(accountId) {
+    if (isSupabaseMode) {
+      const result = await deleteSupabaseAccount(accountId)
+
+      if (!result.ok) {
+        return result
+      }
+
+      const nextAccounts = await refreshSupabaseAccounts()
+      await syncSessionUserFromAccounts(nextAccounts)
+      return { ok: true }
+    }
+
     const nextAccounts = accounts.filter((account) => account.id !== accountId)
-    persistAccounts(nextAccounts)
+    persistLocalAccounts(nextAccounts)
 
     if (user?.id === accountId) {
       setUser(null)
-      localStorage.removeItem(SESSION_KEY)
+      clearSession()
     }
+
+    return { ok: true }
   }
 
-  function login(identifier, password, role) {
+  async function login(identifier, password, role) {
+    if (isSupabaseMode) {
+      const result = await loginWithSupabase(identifier, password, role)
+
+      if (!result.ok) {
+        return result
+      }
+
+      setUser(result.user)
+      await refreshSupabaseAccounts()
+      return result
+    }
+
     const normalizedIdentifier = identifier.trim().toLowerCase()
     const account = accounts.find(
       (item) =>
@@ -280,26 +510,38 @@ export function AuthProvider({ children }) {
       return { ok: false, message: 'Credenciais inválidas.' }
     }
 
-    const sessionUser = {
-      id: account.id,
-      name: account.name,
-      email: account.email,
-      role: account.role,
-      validationStatus: account.validationStatus,
-    }
-
+    const sessionUser = toSessionUser(account)
     setUser(sessionUser)
-    writeJson(SESSION_KEY, sessionUser)
+    writeSession(sessionUser)
 
     return { ok: true, message: 'Sessão iniciada.', user: sessionUser }
   }
 
-  function logout() {
+  async function logout() {
+    if (isSupabaseMode) {
+      await logoutSupabase()
+    }
+
     setUser(null)
-    localStorage.removeItem(SESSION_KEY)
+    clearSession()
   }
 
-  function updateAccountReview(accountId, metadata = {}) {
+  async function updateAccountReview(accountId, metadata = {}) {
+    if (isSupabaseMode) {
+      const result = await updateSupabaseReview(accountId, {
+        adminNote: metadata.adminNote,
+        rejectionReason: metadata.rejectionReason,
+      })
+
+      if (!result.ok) {
+        return result
+      }
+
+      const nextAccounts = await refreshSupabaseAccounts()
+      await syncSessionUserFromAccounts(nextAccounts)
+      return { ok: true }
+    }
+
     const nextAccounts = accounts.map((account) => {
       if (account.id !== accountId) {
         return account
@@ -316,26 +558,26 @@ export function AuthProvider({ children }) {
       }
     })
 
-    persistAccounts(nextAccounts)
+    persistLocalAccounts(nextAccounts)
+    return { ok: true }
   }
 
-  const value = useMemo(
-    () => ({
-      user,
-      isAuthenticated: Boolean(user),
-      accounts,
-      approveAccount,
-      deactivateAccount,
-      deleteAccount,
-      rejectAccount,
-      reactivateAccount,
-      updateAccountReview,
-      login,
-      logout,
-      registerAccount,
-    }),
-    [accounts, user]
-  )
+  const value = {
+    user,
+    isAuthenticated: Boolean(user),
+    authReady,
+    accounts,
+    approveAccount,
+    deactivateAccount,
+    deleteAccount,
+    rejectAccount,
+    reactivateAccount,
+    updateAccountReview,
+    login,
+    logout,
+    registerAccount,
+    authMode: isSupabaseMode ? 'supabase' : 'local',
+  }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

@@ -10,19 +10,25 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [role, setRole] = useState('cliente')
   const [feedback, setFeedback] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
-    const result = login(identifier, password, role)
+    setFeedback('')
+    setIsSubmitting(true)
+
+    const result = await login(identifier, password, role)
 
     if (!result.ok) {
       setFeedback(result.message)
+      setIsSubmitting(false)
       return
     }
 
     const fallback = result.user.role === 'admin' ? '/admin' : '/app'
     const to = location.state?.from?.pathname || fallback
     navigate(to)
+    setIsSubmitting(false)
   }
 
   return (
@@ -98,9 +104,10 @@ export default function LoginPage() {
 
             <button
               type="submit"
+              disabled={isSubmitting}
               className="w-full rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-white"
             >
-              Iniciar sessão
+              {isSubmitting ? 'A entrar...' : 'Iniciar sessão'}
             </button>
           </form>
         </section>

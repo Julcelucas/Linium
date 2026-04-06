@@ -14,95 +14,146 @@ const labels = {
 }
 
 const statusClasses = {
-  ativo: 'bg-emerald-100 text-emerald-700',
-  pendente: 'bg-amber-100 text-amber-700',
-  rejeitado: 'bg-red-100 text-red-700',
+  ativo: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  pendente: 'border-amber-200 bg-amber-50 text-amber-700',
+  rejeitado: 'border-red-200 bg-red-50 text-red-700',
+  inativo: 'border-slate-300 bg-slate-100 text-slate-700',
 }
 
 const dashboardCopy = {
   cliente: {
-    eyebrow: 'Área do cliente',
-    title: 'Encontra, compara e contrata com mais confiança.',
-    text: 'A tua área foi pensada para acompanhar contactos, guardar profissionais e organizar o histórico de decisões.',
+    eyebrow: 'Dashboard do cliente',
+    title: 'Controlo central de pesquisa e contratação.',
     items: clientDashboardItems,
-    accent: 'border-sky-100 bg-sky-50/70',
+    summary:
+      'Acompanha pesquisa, contactos e decisões num único painel com leitura rápida.',
+    primaryAction: {
+      label: 'Pesquisar serviços',
+      to: '/servicos',
+    },
   },
   prestador: {
-    eyebrow: 'Área do prestador',
-    title: 'Controla a tua presença digital e acelera novos contactos.',
-    text: 'Esta área organiza pedidos recebidos, estado de validação e evolução da tua reputação dentro do Linium.',
+    eyebrow: 'Dashboard do prestador',
+    title: 'Gestão operacional da tua presença profissional.',
     items: providerDashboardItems,
-    accent: 'border-orange-100 bg-orange-50/70',
+    summary:
+      'Organiza pedidos, performance e reputação para manter um fluxo comercial estável.',
+    primaryAction: {
+      label: 'Ver oportunidades',
+      to: '/servicos',
+    },
   },
   empresa: {
-    eyebrow: 'Área da empresa',
-    title: 'Coordena serviços, reputação e crescimento comercial da tua empresa.',
-    text: 'A tua área empresarial concentra operação, presença pública e leitura rápida do posicionamento da empresa na plataforma.',
+    eyebrow: 'Dashboard empresarial',
+    title: 'Coordenação executiva de operação e crescimento.',
     items: companyDashboardItems,
-    accent: 'border-violet-100 bg-violet-50/70',
+    summary:
+      'Mantém visão consolidada da equipa, reputação e geração de novas oportunidades.',
+    primaryAction: {
+      label: 'Analisar mercado',
+      to: '/servicos',
+    },
   },
+}
+
+const roleHighlight = {
+  cliente: 'from-slate-900 to-slate-700',
+  prestador: 'from-slate-900 to-blue-900',
+  empresa: 'from-slate-900 to-indigo-900',
+  admin: 'from-slate-900 to-slate-700',
 }
 
 export default function DashboardPage() {
   const { user, logout } = useAuth()
-  const config = dashboardCopy[user.role]
+  const config = dashboardCopy[user.role] ?? dashboardCopy.cliente
+  const focusClass = roleHighlight[user.role] ?? roleHighlight.admin
 
   return (
-    <main className="min-h-screen bg-[var(--surface)] px-6 py-14">
-      <div className="mx-auto w-full max-w-5xl rounded-[2rem] border border-[var(--border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(212,237,247,0.4))] p-8 shadow-[0_24px_60px_rgba(8,42,51,0.1)]">
-        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-orange-600">
-          {config.eyebrow}
-        </p>
-        <h1 className="mt-4 font-display text-5xl leading-[1.05] text-[var(--brand)]">
-          Bem-vindo, {user.name}
-        </h1>
-        <p className="mt-3 text-base leading-8 text-slate-600">
-          Perfil atual: <strong>{labels[user.role]}</strong>. Estado de validação:{' '}
-          <strong className={`rounded-full px-3 py-1 text-sm ${statusClasses[user.validationStatus]}`}>
-            {user.validationStatus}
-          </strong>
-        </p>
-        <p className="mt-4 max-w-3xl text-base leading-8 text-slate-600">{config.text}</p>
+    <main className="min-h-screen bg-[var(--surface)] px-5 py-10 md:px-8 md:py-12">
+      <div className="mx-auto w-full max-w-6xl rounded-3xl border border-[var(--border)] bg-white shadow-[0_22px_48px_rgba(15,23,42,0.08)]">
+        <header className={`rounded-t-3xl bg-gradient-to-r ${focusClass} px-6 py-8 text-white md:px-10 md:py-10`}>
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-200">{config.eyebrow}</p>
+          <h1 className="mt-3 font-display text-4xl leading-[1.06] md:text-5xl">{user.name}</h1>
+          <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-200 md:text-base">{config.title}</p>
+        </header>
 
-        <div className="mt-8 grid gap-4 md:grid-cols-2">
-          <article className={`rounded-2xl border p-5 ${config.accent}`}>
-            <h2 className="font-display text-3xl text-[var(--brand)]">Área operacional</h2>
-            <ul className="mt-3 list-disc pl-5 text-sm leading-7 text-slate-600">
-              {config.items.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </article>
+        <div className="grid gap-0 lg:grid-cols-[300px_1fr]">
+          <aside className="border-b border-[var(--border)] bg-slate-50/70 p-6 lg:border-r lg:border-b-0 lg:p-8">
+            <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Conta</h2>
 
-          <article className="rounded-2xl border border-sky-100 bg-sky-50/65 p-5">
-            <h2 className="font-display text-3xl text-[var(--brand)]">Resumo do perfil</h2>
-            <p className="mt-3 text-sm leading-7 text-slate-600">
-              {config.title}
-            </p>
-            <div className="mt-4 rounded-xl bg-white/70 px-4 py-3 text-sm leading-7 text-slate-600">
-              {user.role === 'cliente'
-                ? 'Podes começar já a explorar resultados e selecionar profissionais validados.'
-                : user.validationStatus === 'ativo'
-                  ? 'O teu perfil está ativo e pronto para receber novas oportunidades.'
-                  : 'A tua conta está registada, mas ainda aguarda validação da administração.'}
+            <div className="mt-4 space-y-3 rounded-2xl border border-[var(--border)] bg-white p-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Perfil</p>
+                <p className="mt-1 text-sm font-semibold text-slate-800">{labels[user.role]}</p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Estado</p>
+                <span
+                  className={`mt-1 inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${statusClasses[user.validationStatus] ?? statusClasses.inativo}`}
+                >
+                  {user.validationStatus}
+                </span>
+              </div>
             </div>
-          </article>
-        </div>
 
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Link
-            to="/"
-            className="rounded-xl border border-[var(--border)] px-5 py-3 text-sm font-semibold text-[var(--brand)]"
-          >
-            Voltar ao site
-          </Link>
-          <button
-            type="button"
-            onClick={logout}
-            className="rounded-xl bg-[var(--brand)] px-5 py-3 text-sm font-semibold text-white"
-          >
-            Terminar sessão
-          </button>
+            <div className="mt-6 space-y-3 border-t border-[var(--border)] pt-5">
+              <Link
+                to={config.primaryAction.to}
+                className="block rounded-xl bg-[var(--brand)] px-4 py-3 text-center text-sm font-semibold text-white"
+              >
+                {config.primaryAction.label}
+              </Link>
+              <Link
+                to="/"
+                className="block rounded-xl border border-[var(--border)] bg-white px-4 py-3 text-center text-sm font-semibold text-[var(--brand)]"
+              >
+                Voltar ao site
+              </Link>
+              <button
+                type="button"
+                onClick={logout}
+                className="w-full rounded-xl border border-slate-300 bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700"
+              >
+                Terminar sessão
+              </button>
+            </div>
+          </aside>
+
+          <section className="p-6 md:p-8 lg:p-10">
+            <div className="rounded-2xl border border-[var(--border)] bg-slate-50/60 p-5 md:p-6">
+              <h2 className="font-display text-3xl text-[var(--brand)]">Resumo executivo</h2>
+              <p className="mt-2 text-sm leading-7 text-slate-600 md:text-base">{config.summary}</p>
+            </div>
+
+            <div className="mt-6 rounded-2xl border border-[var(--border)] bg-white p-5 md:p-6">
+              <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Prioridades</h3>
+              <ul className="mt-4 space-y-3 border-t border-[var(--border)] pt-4">
+                {config.items.map((item, index) => (
+                  <li key={item} className="flex items-start gap-3 rounded-xl border border-[var(--border)] bg-slate-50/60 px-4 py-3 text-sm leading-6 text-slate-700">
+                    <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--brand)] text-xs font-semibold text-white">
+                      {index + 1}
+                    </span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="mt-6 grid gap-4 md:grid-cols-3">
+              <article className="rounded-2xl border border-[var(--border)] bg-white p-4">
+                <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Foco</p>
+                <p className="mt-2 text-sm font-semibold leading-6 text-slate-800">Operação diária</p>
+              </article>
+              <article className="rounded-2xl border border-[var(--border)] bg-white p-4">
+                <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Objetivo</p>
+                <p className="mt-2 text-sm font-semibold leading-6 text-slate-800">Eficiência e confiança</p>
+              </article>
+              <article className="rounded-2xl border border-[var(--border)] bg-white p-4">
+                <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Estado</p>
+                <p className="mt-2 text-sm font-semibold leading-6 text-slate-800">Painel estático e profissional</p>
+              </article>
+            </div>
+          </section>
         </div>
       </div>
     </main>

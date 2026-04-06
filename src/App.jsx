@@ -4,12 +4,12 @@ import { useAuth } from './auth/AuthContext'
 import { filterProfiles, marketplaceProfiles } from './data/marketplaceData'
 
 const navigation = [
-  { label: 'Visão', href: '#visao' },
-  { label: 'Estrutura', href: '#estrutura' },
-  { label: 'Categorias', href: '#categorias' },
-  { label: 'Impacto', href: '#impacto' },
-  { label: 'Expansão', href: '#expansao' },
-  { label: 'Contacto', href: '#contacto' },
+  { label: 'Visão', to: '/visao' },
+  { label: 'Estrutura', to: '/estrutura' },
+  { label: 'Categorias', to: '/categorias' },
+  { label: 'Impacto', to: '/impacto' },
+  { label: 'Expansão', to: '/expansao' },
+  { label: 'Contacto', to: '/contacto' },
 ]
 
 const quickStats = [
@@ -293,13 +293,13 @@ function App() {
 
           <nav className="hidden items-center gap-5 xl:gap-7 lg:flex">
             {navigation.map((item) => (
-              <a
+              <Link
                 key={item.label}
-                href={item.href}
+                to={item.to}
                 className="text-sm font-semibold tracking-[0.14em] text-slate-600 transition hover:text-[var(--brand)] xl:tracking-[0.18em]"
               >
                 {item.label}
-              </a>
+              </Link>
             ))}
           </nav>
 
@@ -358,12 +358,12 @@ function App() {
             </p>
 
             <div className="mt-10 flex flex-wrap gap-4">
-              <a
-                href="#visao"
+              <Link
+                to="/visao"
                 className="inline-flex items-center rounded-full bg-[var(--brand)] px-6 py-3.5 text-sm font-semibold tracking-[0.16em] text-white transition hover:bg-[var(--brand-mid)]"
               >
                 Ver proposta estratégica
-              </a>
+              </Link>
               {!isAuthenticated ? (
                 <Link
                   to="/entrar"
@@ -372,12 +372,12 @@ function App() {
                   Entrar para contactar
                 </Link>
               ) : null}
-              <a
-                href="#categorias"
+              <Link
+                to="/categorias"
                 className="inline-flex items-center rounded-full border border-[var(--brand)]/15 bg-white px-6 py-3.5 text-sm font-semibold tracking-[0.16em] text-[var(--brand)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
               >
                 Explorar categorias
-              </a>
+              </Link>
             </div>
 
             <div className="mt-12 grid gap-4 sm:grid-cols-3">
@@ -907,7 +907,7 @@ function App() {
           <div className="flex gap-6">
             <Link to="/criar-conta" className="transition hover:text-[var(--accent)]">Criar conta</Link>
             <Link to="/entrar" className="transition hover:text-[var(--accent)]">Entrar</Link>
-            <a href="#visao" className="transition hover:text-[var(--accent)]">Sobre</a>
+            <Link to="/visao" className="transition hover:text-[var(--accent)]">Sobre</Link>
           </div>
         </div>
       </footer>

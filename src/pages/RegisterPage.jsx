@@ -107,6 +107,7 @@ export default function RegisterPage() {
   const [feedback, setFeedback] = useState('')
   const [registered, setRegistered] = useState(false)
   const [registeredRole, setRegisteredRole] = useState(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const selectedRole = roleCards.find((r) => r.value === form.role)
 
@@ -134,8 +135,10 @@ export default function RegisterPage() {
     setDocumentFile(file)
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
+    setFeedback('')
+
     if (form.password !== form.confirmPassword) {
       setFeedback('A confirmação de senha não corresponde à senha indicada.')
       return
@@ -152,16 +155,28 @@ export default function RegisterPage() {
       setFeedback(`Por favor carregue o documento requerido: ${selectedRole.docLabel}.`)
       return
     }
-    const result = registerAccount({ ...form, documentRef: documentFile ? documentFile.name : null })
+
+    setIsSubmitting(true)
+
+    const result = await registerAccount({
+      ...form,
+      documentRef: documentFile ? documentFile.name : null,
+    })
+
     if (!result.ok) {
       setFeedback(result.message)
+      setIsSubmitting(false)
       return
     }
+
     setRegisteredRole(form.role)
     setRegistered(true)
+
     if (form.role === 'cliente') {
       setTimeout(() => navigate('/app'), 1500)
     }
+
+    setIsSubmitting(false)
   }
 
   // --- Ecrã de sucesso para cliente ---
@@ -304,9 +319,10 @@ export default function RegisterPage() {
                   )}
                 </button>
               ))}
+                  disabled={isSubmitting}
             </div>
           </div>
-
+                  {isSubmitting ? 'A criar conta...' : 'Criar conta'}
           {/* Campos do formulario */}
           <form className="mt-8" onSubmit={handleSubmit}>
             <div className="grid gap-5 md:grid-cols-2">
